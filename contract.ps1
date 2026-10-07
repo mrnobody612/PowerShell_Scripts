@@ -92,7 +92,7 @@ $scanResult = "$resultFolder\scan.txt"
 "Timestamp: $(Get-Date)" |
     Add-Content $scanResult
 
-"Target: 10.14.10.0/30" |
+"Target: IP/range" |
     Add-Content $scanResult
 
 "Port: 22" |
@@ -101,12 +101,9 @@ $scanResult = "$resultFolder\scan.txt"
 "" |
     Add-Content $scanResult
 
-
-# Only the dedicated lab /30
-
 1..2 | ForEach-Object {
 
-    $ip = "10.14.10.$_"
+    $ip = "IP.$_"
 
     try {
 
