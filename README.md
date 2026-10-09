@@ -37,5 +37,5 @@ Example:
 
 ```powershell
 $srv = "IP"
-$beaconPort = 7777
+$beaconPort = port
 $httpPort = 8080
