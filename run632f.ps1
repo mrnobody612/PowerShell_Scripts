@@ -44,7 +44,7 @@ function TemporaryDirectory {
 }
 
 $srv = "attacker_server"
-$bcnprt = 2222
+$bcnprt = 8888
 $httpPort = 8080
 
 $root = "C:\Temp"
@@ -54,7 +54,7 @@ $resultFolder = "$root\Results"
 New-Item -ItemType Directory -Force -Path $dataFolder | Out-Null
 New-Item -ItemType Directory -Force -Path $resultFolder | Out-Null
 
-$marker = "$root\s1.txt"
+$marker = "$root\s3.txt"
 
 "Executed: $(Get-Date)" |
     Out-File $marker -Encoding UTF8
@@ -92,7 +92,7 @@ while ((Get-Date) -lt $endTime) {
     Start-Sleep -Seconds $sleepSeconds
 }
 
-$discoveryLog = "$resultFolder\cred.txt"
+$discoveryLog = "$resultFolder\cr3.txt"
 
 "=== FILE DISCOVERY ===" |
     Out-File $discoveryLog -Encoding UTF8
@@ -145,7 +145,7 @@ catch {
     Write-Host "Chyba: $($_.Exception.Message)"
 }
 
-$scanResult = "$resultFolder\scan.txt"
+$scanResult = "$resultFolder\sc4.txt"
 
 "=== NETWORK DISCOVERY ===" |
     Out-File $scanResult -Encoding UTF8
